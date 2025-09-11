@@ -1,0 +1,80 @@
+import random
+
+# Function to maximize
+def fitness(x):
+    return x * x  # f(x) = x^2
+
+# Generate initial population
+def generate_population(size, min_val, max_val):
+    population = []
+    for _ in range(size):
+        individual = random.uniform(min_val, max_val)
+        population.append(individual)
+    return population
+
+# Tournament selection
+def select_parents(population):
+    parent1 = random.choice(population)
+    parent2 = random.choice(population)
+    return parent1 if fitness(parent1) > fitness(parent2) else parent2
+
+# Crossover: Arithmetic crossover
+def crossover(parent1, parent2, crossover_rate):
+    if random.random() < crossover_rate:
+        return (parent1 + parent2) / 2
+    else:
+        return parent1
+
+# Mutation
+def mutate(individual, mutation_rate, min_val, max_val):
+    if random.random() < mutation_rate:
+        mutation = random.uniform(-1.0, 1.0)
+        individual += mutation
+        individual = max(min(individual, max_val), min_val)
+    return individual
+
+# Genetic Algorithm with user input
+def genetic_algorithm():
+    # Take user input
+    print("Genetic Algorithm for maximizing f(x) = x^2")
+
+    population_size = int(input("Enter population size (e.g., 50): "))
+    generations = int(input("Enter number of generations (e.g., 1000): "))
+    mutation_rate = float(input("Enter mutation rate (0 to 1, e.g., 0.01): "))
+    crossover_rate = float(input("Enter crossover rate (0 to 1, e.g., 0.8): "))
+    min_val = float(input("Enter minimum value of x (e.g., -5): "))
+    max_val = float(input("Enter maximum value of x (e.g., 5): "))
+
+    # Step 1: Initialize population
+    population = generate_population(population_size, min_val, max_val)
+
+    # Step 2: Evolve for a number of generations
+    for generation in range(generations):
+        new_population = []
+
+        for _ in range(population_size):
+            # Selection
+            parent1 = select_parents(population)
+            parent2 = select_parents(population)
+
+            # Crossover
+            child = crossover(parent1, parent2, crossover_rate)
+
+            # Mutation
+            child = mutate(child, mutation_rate, min_val, max_val)
+
+            new_population.append(child)
+
+        population = new_population
+
+        # Optional: Print best in current generation
+        best = max(population, key=fitness)
+        print(f"Generation {generation+1}: Best x = {best:.5f}, f(x) = {fitness(best):.5f}")
+
+    # Final best individual
+    best_individual = max(population, key=fitness)
+    print("\nFinal Result:")
+    print(f"Best x = {best_individual:.5f}, f(x) = {fitness(best_individual):.5f}")
+
+# Run the GA
+genetic_algorithm()
