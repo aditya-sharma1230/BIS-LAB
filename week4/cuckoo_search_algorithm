@@ -1,0 +1,114 @@
+import random
+import math
+
+# ------------------------------------------------------------
+# 1. Define the Problem (Objective Function)
+# ------------------------------------------------------------
+def rastrigin(position):
+    """Rastrigin function (minimum at [0, 0, ..., 0])"""
+    return 10 * len(position) + sum([(x ** 2 - 10 * math.cos(2 * math.pi * x)) for x in position])
+
+# ------------------------------------------------------------
+# 2. Initialize Parameters
+# ------------------------------------------------------------
+NUM_NESTS = 25             # Number of nests (population size)
+DIMENSIONS = 10            # Number of dimensions
+BOUND_LOW, BOUND_HIGH = -5.12, 5.12
+PROB_DISCOVERY = 0.25      # Fraction of nests to be replaced
+MAX_ITER = 100             # Number of iterations
+
+# ------------------------------------------------------------
+# 3. Initialize Population
+# ------------------------------------------------------------
+def initialize_nests():
+    """Generate random nests (candidate solutions)."""
+    return [[random.uniform(BOUND_LOW, BOUND_HIGH) for _ in range(DIMENSIONS)] for _ in range(NUM_NESTS)]
+
+# ------------------------------------------------------------
+# 4. Evaluate Fitness
+# ------------------------------------------------------------
+def fitness(solution):
+    """Since we minimize, smaller function value = better fitness."""
+    return rastrigin(solution)
+
+# ------------------------------------------------------------
+# 5. Lévy Flight (Generate New Solutions)
+# ------------------------------------------------------------
+def levy_flight(Lambda):
+    """Generate a Lévy step size using Mantegna’s algorithm."""
+    sigma = (math.gamma(1 + Lambda) * math.sin(math.pi * Lambda / 2) /
+             (math.gamma((1 + Lambda) / 2) * Lambda * 2 ** ((Lambda - 1) / 2))) ** (1 / Lambda)
+    u = random.gauss(0, sigma)
+    v = random.gauss(0, 1)
+    step = u / abs(v) ** (1 / Lambda)
+    return step
+
+def generate_new_solution(nest, best):
+    """Perform Lévy flight around the best solution."""
+    new_nest = []
+    for x, b in zip(nest, best):
+        step_size = 0.01 * levy_flight(1.5) * (x - b)
+        new_value = x + step_size * random.gauss(0, 1)
+        new_value = max(BOUND_LOW, min(BOUND_HIGH, new_value))
+        new_nest.append(new_value)
+    return new_nest
+
+# ------------------------------------------------------------
+# 6. Abandon Worst Nests
+# ------------------------------------------------------------
+def abandon_nests(nests, fitnesses):
+    """Abandon a fraction of worst nests and replace them with random ones."""
+    num_abandon = int(PROB_DISCOVERY * NUM_NESTS)
+    # Sort nests by fitness (higher means worse since we minimize)
+    sorted_nests = sorted(zip(nests, fitnesses), key=lambda x: x[1])
+    new_nests = [n for n, _ in sorted_nests[:NUM_NESTS - num_abandon]]
+    # Replace worst nests with new random ones
+    for _ in range(num_abandon):
+        new_nests.append([random.uniform(BOUND_LOW, BOUND_HIGH) for _ in range(DIMENSIONS)])
+    return new_nests
+
+# ------------------------------------------------------------
+# 7. Main Cuckoo Search Loop
+# ------------------------------------------------------------
+def cuckoo_search():
+    nests = initialize_nests()
+    best_nest = min(nests, key=fitness)
+    best_fitness = fitness(best_nest)
+
+    for iteration in range(MAX_ITER):
+        new_nests = []
+        for nest in nests:
+            new_nest = generate_new_solution(nest, best_nest)
+            # Replace if better
+            if fitness(new_nest) < fitness(nest):
+                new_nests.append(new_nest)
+            else:
+                new_nests.append(nest)
+        nests = new_nests
+
+        # Abandon worst nests and replace
+        fitnesses = [fitness(n) for n in nests]
+        nests = abandon_nests(nests, fitnesses)
+
+        # Update best
+        current_best = min(nests, key=fitness)
+        current_fitness = fitness(current_best)
+        if current_fitness < best_fitness:
+            best_nest = current_best[:]
+            best_fitness = current_fitness
+
+        # Progress report
+        if iteration % 10 == 0 or iteration == MAX_ITER - 1:
+            print(f"Iteration {iteration + 1}/{MAX_ITER} | Best Fitness: {best_fitness:.6f}")
+
+    return best_nest, best_fitness
+
+# ------------------------------------------------------------
+# 8. Run the Algorithm and Output Best Solution
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    best_sol, best_fit = cuckoo_search()
+    print("\nBest Solution Found:")
+    print(best_sol)
+    print(f"Best Fitness: {best_fit:.6f}")
+    print(f"Function Value (Rastrigin): {rastrigin(best_sol):.6f}")
