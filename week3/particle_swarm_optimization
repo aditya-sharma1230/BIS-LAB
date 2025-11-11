@@ -1,0 +1,111 @@
+import random
+import math
+
+# ------------------------------------------------------------
+# 1. Define the Problem (Objective Function)
+# ------------------------------------------------------------
+def rastrigin(position):
+    """Rastrigin function (minimum at [0, 0, ..., 0])"""
+    return 10 * len(position) + sum([(x ** 2 - 10 * math.cos(2 * math.pi * x)) for x in position])
+
+# ------------------------------------------------------------
+# 2. Initialize Parameters
+# ------------------------------------------------------------
+NUM_PARTICLES = 30          # Number of particles in the swarm
+DIMENSIONS = 10             # Number of variables (dimensions)
+MAX_ITER = 100              # Number of iterations
+BOUND_LOW, BOUND_HIGH = -5.12, 5.12  # Search space boundaries
+
+W = 0.7                     # Inertia weight
+C1 = 1.5                    # Cognitive coefficient (personal best)
+C2 = 1.5                    # Social coefficient (global best)
+
+# ------------------------------------------------------------
+# 3. Initialize Particles
+# ------------------------------------------------------------
+def initialize_particles():
+    particles = []
+    velocities = []
+    for _ in range(NUM_PARTICLES):
+        position = [random.uniform(BOUND_LOW, BOUND_HIGH) for _ in range(DIMENSIONS)]
+        velocity = [random.uniform(-1, 1) for _ in range(DIMENSIONS)]
+        particles.append(position)
+        velocities.append(velocity)
+    return particles, velocities
+
+# ------------------------------------------------------------
+# 4. Evaluate Fitness
+# ------------------------------------------------------------
+def fitness(position):
+    """Fitness is inverse of function value since we minimize."""
+    return 1 / (rastrigin(position) + 1e-6)
+
+# ------------------------------------------------------------
+# 5. Update Velocities and Positions
+# ------------------------------------------------------------
+def update_velocity(velocity, position, best_personal, best_global):
+    new_velocity = []
+    for i in range(DIMENSIONS):
+        r1 = random.random()
+        r2 = random.random()
+        cognitive = C1 * r1 * (best_personal[i] - position[i])
+        social = C2 * r2 * (best_global[i] - position[i])
+        new_v = W * velocity[i] + cognitive + social
+        new_velocity.append(new_v)
+    return new_velocity
+
+def update_position(position, velocity):
+    new_position = []
+    for i in range(DIMENSIONS):
+        new_x = position[i] + velocity[i]
+        # Clamp to boundaries
+        new_x = max(BOUND_LOW, min(BOUND_HIGH, new_x))
+        new_position.append(new_x)
+    return new_position
+
+# ------------------------------------------------------------
+# 6. Main PSO Loop
+# ------------------------------------------------------------
+def particle_swarm_optimization():
+    particles, velocities = initialize_particles()
+
+    # Initialize personal and global bests
+    personal_best_positions = [p[:] for p in particles]
+    personal_best_scores = [fitness(p) for p in particles]
+    global_best_position = personal_best_positions[personal_best_scores.index(max(personal_best_scores))][:]
+    global_best_score = max(personal_best_scores)
+
+    for iteration in range(MAX_ITER):
+        for i in range(NUM_PARTICLES):
+            # Update velocity and position
+            velocities[i] = update_velocity(velocities[i], particles[i], personal_best_positions[i], global_best_position)
+            particles[i] = update_position(particles[i], velocities[i])
+
+            # Evaluate new fitness
+            current_fitness = fitness(particles[i])
+
+            # Update personal best
+            if current_fitness > personal_best_scores[i]:
+                personal_best_scores[i] = current_fitness
+                personal_best_positions[i] = particles[i][:]
+
+            # Update global best
+            if current_fitness > global_best_score:
+                global_best_score = current_fitness
+                global_best_position = particles[i][:]
+
+        # Print progress
+        if iteration % 10 == 0 or iteration == MAX_ITER - 1:
+            print(f"Iteration {iteration + 1}/{MAX_ITER} | Best Fitness: {global_best_score:.6f}")
+
+    return global_best_position, global_best_score
+
+# ------------------------------------------------------------
+# 7. Run PSO and Output Best Solution
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    best_pos, best_fit = particle_swarm_optimization()
+    print("\nBest Solution Found:")
+    print(best_pos)
+    print(f"Best Fitness: {best_fit:.6f}")
+    print(f"Function Value (Rastrigin): {rastrigin(best_pos):.6f}")
