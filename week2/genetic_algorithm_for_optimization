@@ -1,0 +1,118 @@
+import random
+import math
+
+# ------------------------------------------------------------
+# 1. Define the problem (optimization function)
+# ------------------------------------------------------------
+def rastrigin(x):
+    """Rastrigin function (minimized at x = 0)."""
+    return 10 * len(x) + sum([(xi**2 - 10 * math.cos(2 * math.pi * xi)) for xi in x])
+
+# ------------------------------------------------------------
+# 2. Initialize parameters
+# ------------------------------------------------------------
+POP_SIZE = 50            # Number of individuals
+GENE_LENGTH = 10         # Number of genes per individual
+GEN_MIN, GEN_MAX = -5.12, 5.12
+MUTATION_RATE = 0.1
+CROSSOVER_RATE = 0.7
+GENERATIONS = 100
+
+# ------------------------------------------------------------
+# 3. Initialize population
+# ------------------------------------------------------------
+def initialize_population():
+    """Generate initial random population."""
+    return [[random.uniform(GEN_MIN, GEN_MAX) for _ in range(GENE_LENGTH)] for _ in range(POP_SIZE)]
+
+# ------------------------------------------------------------
+# 4. Evaluate fitness
+# ------------------------------------------------------------
+def evaluate_fitness(individual):
+    """Fitness is inverse of function value (we minimize the function)."""
+    return 1 / (rastrigin(individual) + 1e-6)
+
+# ------------------------------------------------------------
+# 5. Selection (tournament selection)
+# ------------------------------------------------------------
+def selection(population, fitnesses):
+    """Select one individual using tournament selection."""
+    k = 3
+    selected = random.sample(list(zip(population, fitnesses)), k)
+    selected.sort(key=lambda x: x[1], reverse=True)
+    return selected[0][0]
+
+# ------------------------------------------------------------
+# 6. Crossover (uniform crossover)
+# ------------------------------------------------------------
+def crossover(parent1, parent2):
+    """Perform uniform crossover."""
+    if random.random() > CROSSOVER_RATE:
+        return parent1[:]
+    child = []
+    for g1, g2 in zip(parent1, parent2):
+        child.append(g1 if random.random() < 0.5 else g2)
+    return child
+
+# ------------------------------------------------------------
+# 7. Mutation
+# ------------------------------------------------------------
+def mutate(individual):
+    """Apply random mutation to some genes."""
+    for i in range(GENE_LENGTH):
+        if random.random() < MUTATION_RATE:
+            individual[i] += random.uniform(-1, 1)
+            individual[i] = max(GEN_MIN, min(GEN_MAX, individual[i]))
+    return individual
+
+# ------------------------------------------------------------
+# 8. Gene Expression (simple identity mapping here)
+# ------------------------------------------------------------
+def express_gene(individual):
+    """Translate genetic sequence into a functional solution."""
+    # In this simplified version, genes are directly the variables of the function.
+    return individual
+
+# ------------------------------------------------------------
+# 9. Main loop (evolution)
+# ------------------------------------------------------------
+def gene_expression_algorithm():
+    population = initialize_population()
+    best_solution = None
+    best_fitness = float('-inf')
+
+    for gen in range(GENERATIONS):
+        fitnesses = [evaluate_fitness(express_gene(ind)) for ind in population]
+        
+        # Track best individual
+        current_best = population[fitnesses.index(max(fitnesses))]
+        if max(fitnesses) > best_fitness:
+            best_fitness = max(fitnesses)
+            best_solution = current_best[:]
+
+        # Create new population
+        new_population = []
+        for _ in range(POP_SIZE):
+            parent1 = selection(population, fitnesses)
+            parent2 = selection(population, fitnesses)
+            child = crossover(parent1, parent2)
+            child = mutate(child)
+            new_population.append(child)
+
+        population = new_population
+
+        # Display progress
+        if gen % 10 == 0 or gen == GENERATIONS - 1:
+            print(f"Generation {gen+1}/{GENERATIONS} | Best Fitness: {best_fitness:.6f}")
+
+    return best_solution, best_fitness
+
+# ------------------------------------------------------------
+# 10. Run the algorithm and output the best solution
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    best_sol, best_fit = gene_expression_algorithm()
+    print("\nBest Solution Found:")
+    print(best_sol)
+    print(f"Best Fitness: {best_fit:.6f}")
+    print(f"Function Value (Rastrigin): {rastrigin(best_sol):.6f}")
