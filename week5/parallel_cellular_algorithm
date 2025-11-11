@@ -1,0 +1,131 @@
+import random
+import math
+
+# ------------------------------------------------------------
+# 1. Define the Problem (Objective Function)
+# ------------------------------------------------------------
+def rastrigin(position):
+    """Rastrigin function (minimum at [0, 0, ..., 0])"""
+    return 10 * len(position) + sum([(x ** 2 - 10 * math.cos(2 * math.pi * x)) for x in position])
+
+# ------------------------------------------------------------
+# 2. Initialize Parameters
+# ------------------------------------------------------------
+GRID_SIZE = 5               # Grid is GRID_SIZE x GRID_SIZE (25 cells)
+DIMENSIONS = 10             # Number of variables (dimensions)
+BOUND_LOW, BOUND_HIGH = -5.12, 5.12
+MAX_ITER = 100              # Number of iterations
+NEIGHBORHOOD = "moore"      # 'moore' = 8 neighbors, 'von_neumann' = 4 neighbors
+MUTATION_RATE = 0.1         # Mutation rate for diversity
+
+# ------------------------------------------------------------
+# 3. Initialize Population
+# ------------------------------------------------------------
+def initialize_population():
+    """Generate a 2D grid of random solutions (cells)."""
+    grid = []
+    for _ in range(GRID_SIZE):
+        row = [[random.uniform(BOUND_LOW, BOUND_HIGH) for _ in range(DIMENSIONS)] for _ in range(GRID_SIZE)]
+        grid.append(row)
+    return grid
+
+# ------------------------------------------------------------
+# 4. Evaluate Fitness
+# ------------------------------------------------------------
+def fitness(solution):
+    """Smaller is better (minimization)."""
+    return rastrigin(solution)
+
+# ------------------------------------------------------------
+# 5. Define Neighborhood Structure
+# ------------------------------------------------------------
+def get_neighbors(grid, x, y):
+    """Return a list of neighboring cells (with wrap-around edges)."""
+    neighbors = []
+    directions = []
+
+    if NEIGHBORHOOD == "moore":
+        # 8-connected neighborhood
+        directions = [(-1, -1), (-1, 0), (-1, 1),
+                      (0, -1),           (0, 1),
+                      (1, -1), (1, 0), (1, 1)]
+    elif NEIGHBORHOOD == "von_neumann":
+        # 4-connected neighborhood
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+
+    for dx, dy in directions:
+        nx = (x + dx) % GRID_SIZE  # wrap-around (toroidal grid)
+        ny = (y + dy) % GRID_SIZE
+        neighbors.append(grid[nx][ny])
+
+    return neighbors
+
+# ------------------------------------------------------------
+# 6. Update States (Cell Interaction and Evolution)
+# ------------------------------------------------------------
+def update_cell(grid, x, y):
+    """Update a cell based on its neighbors."""
+    cell = grid[x][y]
+    neighbors = get_neighbors(grid, x, y)
+
+    # Find the best neighbor
+    best_neighbor = min(neighbors, key=fitness)
+    best_cell = best_neighbor if fitness(best_neighbor) < fitness(cell) else cell
+
+    # Move toward the best neighbor (diffusion of good traits)
+    new_cell = []
+    for i in range(DIMENSIONS):
+        # Move slightly toward the best cell
+        step = random.random() * (best_cell[i] - cell[i])
+        new_value = cell[i] + step
+
+        # Apply mutation occasionally
+        if random.random() < MUTATION_RATE:
+            new_value += random.uniform(-0.5, 0.5)
+
+        # Bound the position
+        new_value = max(BOUND_LOW, min(BOUND_HIGH, new_value))
+        new_cell.append(new_value)
+
+    return new_cell
+
+# ------------------------------------------------------------
+# 7. Main PCA Loop
+# ------------------------------------------------------------
+def parallel_cellular_algorithm():
+    grid = initialize_population()
+    best_solution = None
+    best_fitness = float('inf')
+
+    for iteration in range(MAX_ITER):
+        new_grid = [[None for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
+
+        # Update all cells (can be done in parallel conceptually)
+        for i in range(GRID_SIZE):
+            for j in range(GRID_SIZE):
+                new_grid[i][j] = update_cell(grid, i, j)
+
+                # Track global best
+                f_val = fitness(new_grid[i][j])
+                if f_val < best_fitness:
+                    best_fitness = f_val
+                    best_solution = new_grid[i][j][:]
+
+        # Replace old grid
+        grid = new_grid
+
+        # Display progress
+        if iteration % 10 == 0 or iteration == MAX_ITER - 1:
+            print(f"Iteration {iteration + 1}/{MAX_ITER} | Best Fitness: {best_fitness:.6f}")
+
+    return best_solution, best_fitness
+
+# ------------------------------------------------------------
+# 8. Run Algorithm and Output Best Solution
+# ------------------------------------------------------------
+if __name__ == "__main__":
+    best_sol, best_fit = parallel_cellular_algorithm()
+    print("\nBest Solution Found:")
+    print(best_sol)
+    print(f"Best Fitness: {best_fit:.6f}")
+    print(f"Function Value (Rastrigin): {rastrigin(best_sol):.6f}")
